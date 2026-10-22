@@ -14,13 +14,17 @@
 {% block content %}
 <!-- ══ DISPATCH MODE BANNER ══════════════════════════════════════════════════ -->
 <div id="dispatchModeBanner" class="dispatch-mode-banner">
-  <span id="dispatchModeLabel">Loading mode…</span>
-  {% if role == 'admin' %}
-  <div class="mode-controls">
-    <button id="btnSetManual"    class="btn btn-sm btn-outline-light" onclick="setMode('manual')">🔧 Manual</button>
-    <button id="btnSetAutomatic" class="btn btn-sm btn-outline-warning" onclick="setMode('automatic')">⚡ Auto-Dispatch</button>
+  <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-2">
+      <span id="dispatchModeLabel" class="fw-700">Loading mode…</span>
+      <span id="dispatchModeDesc" class="small opacity-75 d-none d-md-inline"></span>
+    </div>
+    {% if role == 'admin' %}
+    <div class="mode-controls d-flex align-items-center gap-2">
+      <button id="btnToggleMode" class="btn btn-sm" onclick="toggleMode()">Switch Mode</button>
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <!-- ══ Dashboard ════════════════════════════════════════════════════════════ -->
@@ -284,10 +288,9 @@
 <div class="sec d-none" id="ai">
   <h2 class="page-title">✨ Gemini AI Assistant</h2>
   <div class="cardx" style="max-width:800px">
-    <p class="small text-muted">
-      Text-only incident analysis. All AI outputs are clearly marked as DRAFTS for dispatcher review.
-      The AI does not dispatch, assign triage, or make operational decisions.
-    </p>
+    <div class="alert alert-info py-2 px-3 small mb-3">
+      <strong>ℹ️ Dispatch Architecture Note:</strong> Ambulance allocation is powered 100% by our deterministic, audit-logged <strong>Rule-Based AI Dispatch Engine</strong>. Google Gemini is an <em>optional generative text copilot</em> for drafting summaries and handover notes. Routine automatic dispatch never requires Gemini or external LLMs.
+    </div>
     <div id="geminiStatus" class="alert alert-info py-2 small d-none"></div>
 
     <!-- Gemini API Key configuration card -->

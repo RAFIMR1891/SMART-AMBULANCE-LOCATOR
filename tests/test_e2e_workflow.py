@@ -17,6 +17,7 @@ def test_complete_workflow():
     query("DELETE FROM dispatch_history")
     query("UPDATE patients SET assigned_ambulance_id=NULL")
     query("DELETE FROM dispatches")
+    query("UPDATE ambulances SET status='Available', available_since=NOW()")
     try:
         query("INSERT INTO users (name,email,password_hash,role) VALUES ('Adm',%s,%s,'admin')", (f"adm{tag}@t.co", generate_password_hash("password123")))
         admin = login(f"adm{tag}@t.co")
@@ -30,6 +31,8 @@ def test_complete_workflow():
         r = admin.post("/api/admin/users", json={"name": "Drv", "email": f"drv{tag}@t.co", "password": "password123", "role": "driver", "ambulance_id": amb1["id"]})
         assert r.status_code == 201
         u1, u2, drv = login(f"u1{tag}@t.co"), login(f"u2{tag}@t.co"), login(f"drv{tag}@t.co")
+        # Ensure manual dispatch mode for this manual dispatch test
+        admin.post("/api/settings/dispatch-mode", json={"mode": "manual", "reason": "Test manual flow"})
         # 1-3: user request appears for dispatcher
         r = u1.post("/api/user/requests", json={"incident_type": "Fire accident", "description": "Fire, people hurt", "latitude": 10.6550, "longitude": 76.9988, "estimated_patient_count": 1})
         assert r.status_code == 201
@@ -71,6 +74,7 @@ def test_complete_workflow():
             assert admin.post(f"/api/dispatches/{did}/cancel", json={"reason": "reassign"}).status_code == 200
         assert query("SELECT COUNT(*) n FROM ambulances WHERE status='Available'", one=True)["n"] >= 2
     finally:
+        admin.post("/api/settings/dispatch-mode", json={"mode": "automatic", "reason": "Reset to default"})
         import seed_pollachi
         seed_pollachi.run()
     # unlinked/foreign data: user cannot cancel after incident closed to dispatch, and cannot read staff data

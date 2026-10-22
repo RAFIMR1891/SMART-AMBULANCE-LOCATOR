@@ -7,7 +7,7 @@
 ## Features
 
 - **Rule-Based AI Dispatch** — Transparent eligibility filtering + ETA ranking (no ML black box)
-- **Automatic Dispatch Mode** — Admin-enabled, atomic, duplicate-safe
+- **Automatic Dispatch Mode** — Persistent default (`AI AUTOMATIC DISPATCH: ON`), atomic, duplicate-safe
 - **Manual Dispatcher Mode** — Find Best Ambulance → Review → Confirm
 - **Auto-Fail Fallback Panel** — Prominent alert + manual takeover when auto fails
 - **15 Pollachi Ambulances** — Distributed across Pollachi, Anaimalai, Valparai, Coimbatore South, Palladam, etc.
@@ -15,7 +15,7 @@
 - **OpenStreetMap Integration** — Leaflet.js, no API key required for maps
 - **Google Routes Traffic ETA** — Optional, falls back gracefully to Haversine
 - **Gemini AI Text Assistant** — In-app key configuration + incident summaries & draft reports
-- **99 Automated Tests** — 100% passing suite covering eligibility, ranking, modes, fallback, auth & concurrency
+- **105 Automated Tests** — 100% passing suite covering database history, auto-dispatch, eligibility, ranking, modes, fallback, auth & concurrency
 
 ---
 
@@ -65,8 +65,11 @@ Get-Content sql\schema.sql | mysql -u root -pYOUR_PASSWORD smart_ambulance
 # Run portal migration
 Get-Content sql\migration_001_portals.sql | mysql -u root -pYOUR_PASSWORD smart_ambulance
 
-# Run dispatch mode + Pollachi hospitals migration
+# Run dispatch mode + Pollachi fleet migration
 Get-Content sql\migration_002_pollachi_dispatch.sql | mysql -u root -pYOUR_PASSWORD smart_ambulance
+
+# Run database history nullable dispatch & incident fallback migration
+Get-Content sql\migration_003_history_nullable_dispatch.sql | mysql -u root -pYOUR_PASSWORD smart_ambulance
 ```
 
 ### 5. Seed Pollachi Fleet (15 Ambulances + Staff)
@@ -112,25 +115,24 @@ See `STAFF_CREDENTIALS.txt` for all 15 driver accounts. (**Never commit this fil
 
 ## Dispatch Mode
 
-### Manual Mode (default)
-1. Log in as Admin or Dispatcher → Dashboard
-2. Open **Emergency Requests** tab
-3. Click **Find Best Ambulance** for any pending request
-4. Review ranked candidates (distance, ETA, equipment, driver)
-5. Select ambulance(s) → enter override reason (optional) → **Confirm Dispatch**
+### Automatic Mode (Default: ON)
+1. Fresh installations start with **AI AUTOMATIC DISPATCH: ON**.
+2. When a patient or staff registers an emergency, the rule-based allocation engine immediately identifies eligible vehicles and atomically dispatches the top-ranked candidate.
+3. The setting persists in the database (`app_settings`) across application restarts.
+4. If auto-dispatch cannot find an eligible vehicle, the request is safely preserved and immediately appears in the **Dispatcher Fallback** panel without turning off global automatic dispatch.
 
-### Automatic Mode
-1. Log in as **Admin** (only admins can change mode)
-2. Click **⚡ Auto-Dispatch** button in the yellow banner at top
-3. Enter reason → confirm
-4. New emergency requests will now be dispatched automatically
-
-If auto-dispatch fails → **Dispatcher Fallback** tab highlights the incident automatically.
+### Manual Mode
+1. Log in as **Admin** (only administrators can switch global dispatch mode).
+2. Click **⏸️ Turn AI Dispatch OFF** in the header banner.
+3. Provide a reason and confirm. The banner updates to **🔧 MANUAL DISPATCH MODE**.
+4. New emergency requests will wait for human dispatcher review and assignment.
 
 ### Manual Fallback (when auto fails)
-1. Navigate to **⚠️ Dispatcher Fallback** in the sidebar (shows badge with count)
-2. Click **Find Eligible Ambulances** for the failed incident
-3. Select an ambulance → **Confirm Manual Dispatch**
+1. Navigate to **⚠️ Dispatcher Fallback** in the sidebar (shows badge with count).
+2. Click **Find Eligible Ambulances** for the unresolved incident.
+3. Review ranked candidates and exclusion explanations.
+4. Select an ambulance (enter optional override reason) → **Confirm Dispatch Selected**.
+5. The dispatch is recorded as `Manual Fallback` while preserving global automatic mode.
 
 ---
 

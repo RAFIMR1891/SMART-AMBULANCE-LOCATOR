@@ -76,7 +76,14 @@ async function sendReq() {
   btn.disabled = false; btn.textContent = '🚨 Submit Emergency Request';
 
   if (r.success) {
-    toast(`✅ Request ${r.data.incident_code} submitted successfully!`, 'success');
+    const d = r.data || {};
+    if (d.dispatch_status === 'assigned') {
+      toast(`✅ Ambulance ${d.ambulance_code || ''} automatically dispatched!`, 'success');
+    } else if (d.dispatch_status === 'needs_human_action') {
+      toast(`⚠️ Request ${d.incident_code} submitted. Awaiting priority dispatcher assignment.`, 'warning');
+    } else {
+      toast(`✅ Request ${d.incident_code} submitted. Awaiting dispatcher assignment.`, 'info');
+    }
     document.getElementById('r_desc').value = '';
     await loadReqs();
     location.hash = '#track';
@@ -186,10 +193,18 @@ async function loadTrack() {
           </div>
         </div>`).join('<hr class="my-2">');
     } else {
+      let pendingMsg = 'Waiting for a dispatcher to assign an ambulance.';
+      let alertBox = '';
+      if (d.last_fail_reason) {
+        alertBox = `<div class="alert alert-warning py-2 px-3 small text-start mb-3">
+          <strong>⚠️ Priority Dispatcher Review:</strong> Automatic allocation was not immediate (${esc(d.last_fail_reason)}). Our human dispatch team has been notified.
+        </div>`;
+      }
       infoEl.innerHTML = `
         <div class="text-center py-3">
+          ${alertBox}
           ${badge(d.status)}
-          <p class="mt-2 text-muted small">${d.status === 'Open' ? 'Waiting for a dispatcher to assign an ambulance.' : 'No ambulance assigned yet.'}</p>
+          <p class="mt-2 text-muted small">${d.status === 'Open' ? pendingMsg : 'No ambulance assigned yet.'}</p>
         </div>`;
     }
   }

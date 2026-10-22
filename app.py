@@ -126,12 +126,12 @@ def create_admin(name, email, password):
 
 # ── Dispatch mode management ─────────────────────────────────────────────────
 def _get_dispatch_mode():
-    """Read current global dispatch mode from app_settings. Default: manual."""
+    """Read current global dispatch mode from app_settings. Default: automatic."""
     try:
         row = query("SELECT value FROM app_settings WHERE setting_key='dispatch_mode'", one=True)
-        return (row["value"] if row else "manual") or "manual"
+        return (row["value"] if row else "automatic") or "automatic"
     except Exception:
-        return "manual"
+        return "automatic"
 
 @app.get("/api/settings/dispatch-mode")
 @login_required(STAFF)
@@ -158,9 +158,9 @@ def set_dispatch_mode():
         """, (mode, session["user_id"], mode, session["user_id"]))
         cur.execute("""
             INSERT INTO dispatch_history
-              (dispatch_id, action, previous_status, new_status, reason,
+              (dispatch_id, incident_id, action, previous_status, new_status, reason,
                dispatch_mode, dispatcher_id)
-            SELECT 0, 'mode_change', %s, %s, %s, %s, %s
+            VALUES (NULL, NULL, 'mode_change', %s, %s, %s, %s, %s)
         """, (f"mode:{current}", f"mode:{mode}", reason, mode, session["user_id"]))
     return ok({"mode": mode, "previous": current, "reason": reason})
 
@@ -177,10 +177,18 @@ def summary():
         "SELECT COUNT(*) n FROM dispatches WHERE dispatch_mode='Automatic'", one=True)["n"]
     manual_fallback = query(
         "SELECT COUNT(*) n FROM dispatches WHERE dispatch_mode='Manual Fallback'", one=True)["n"]
-    needs_human = query(
-        "SELECT COUNT(*) n FROM incidents WHERE status='Open' AND "
-        "id IN (SELECT incident_id FROM dispatches WHERE auto_fail_reason IS NOT NULL AND status='Active')",
-        one=True)["n"]
+    needs_human = query("""
+        SELECT COUNT(*) n FROM incidents i
+        WHERE i.status IN ('Open', 'In progress')
+          AND (i.last_fail_reason IS NOT NULL OR EXISTS (
+              SELECT 1 FROM dispatch_history dh
+              WHERE dh.incident_id=i.id AND dh.action='auto_dispatch_failed'
+          ))
+          AND NOT EXISTS (
+              SELECT 1 FROM dispatches d
+              WHERE d.incident_id=i.id AND d.status='Active'
+          )
+    """, one=True)["n"]
 
     return ok({
         "total_ambulances":  sum(s.values()),
@@ -294,12 +302,29 @@ def add_incident():
           (code, d["title"].strip(), d.get("description",""), d["incident_type"],
            lat, lon, n, d.get("priority","High"), session["user_id"]))
 
-    # Auto-dispatch if mode is enabled
-    if _get_dispatch_mode() == "automatic":
-        inc = query("SELECT * FROM incidents WHERE incident_code=%s", (code,), one=True)
-        _auto_dispatch(inc, session["user_id"])
+    inc = query("SELECT * FROM incidents WHERE incident_code=%s", (code,), one=True)
+    cur_mode = _get_dispatch_mode()
+    assigned = False
+    dispatch_info = None
+    if cur_mode == "automatic":
+        assigned, dispatch_info = _auto_dispatch(inc, session["user_id"])
 
-    return ok({"incident_code": code}, 201)
+    inc_latest = query("SELECT id, incident_code, status, last_fail_reason FROM incidents WHERE id=%s", (inc["id"],), one=True)
+    if assigned:
+        dispatch_status = "assigned"
+    elif cur_mode == "automatic":
+        dispatch_status = "needs_human_action"
+    else:
+        dispatch_status = "awaiting_dispatch"
+
+    return ok({
+        "incident_id": inc_latest["id"],
+        "incident_code": code,
+        "dispatch_status": dispatch_status,
+        "assigned": assigned,
+        "mode": cur_mode,
+        "dispatch_info": dispatch_info
+    }, 201)
 
 def get_incident(iid):
     return query("SELECT * FROM incidents WHERE id=%s", (iid,), one=True)
@@ -394,12 +419,13 @@ def _auto_dispatch(inc, dispatcher_id):
                   f"Routing: {err or 'OK'}. "
                   f"Excluded {len(excluded)} candidates: "
                   + "; ".join(explain_exclusion(e) for e in excluded[:3]))
-        # Record failure in dispatch_history for dispatcher visibility
+        # Record failure in dispatch_history for dispatcher visibility without fake dispatch ID
         query("""INSERT INTO dispatch_history
-                   (dispatch_id,action,previous_status,new_status,reason,dispatch_mode,
+                   (dispatch_id,incident_id,action,previous_status,new_status,reason,dispatch_mode,
                     auto_fail_reason,dispatcher_id)
-                 VALUES (0,'auto_dispatch_failed','Open','Open',%s,'Automatic',%s,%s)""",
-              (reason[:255], reason, dispatcher_id))
+                 VALUES (NULL,%s,'auto_dispatch_failed','Open','Open',%s,'Automatic',%s,%s)""",
+              (iid, reason[:255], reason, dispatcher_id))
+        query("UPDATE incidents SET last_fail_reason=%s WHERE id=%s", (reason, iid))
         return False, {"reason": reason, "excluded": excluded}
 
     best = ranked[0]
@@ -430,19 +456,20 @@ def _auto_dispatch(inc, dispatcher_id):
             cur.execute("UPDATE ambulances SET status='Dispatched',queue_position=%s WHERE id=%s",
                         (pos, best["id"]))
             cur.execute("""INSERT INTO dispatch_history
-                             (dispatch_id,action,previous_status,new_status,reason,dispatch_mode,dispatcher_id)
-                           VALUES (%s,'auto_dispatched','Available','Dispatched',%s,'Automatic',%s)""",
-                        (did, explanation[:255], dispatcher_id))
-            cur.execute("UPDATE incidents SET status='In progress' WHERE id=%s AND status='Open'", (iid,))
+                             (dispatch_id,incident_id,action,previous_status,new_status,reason,dispatch_mode,dispatcher_id)
+                           VALUES (%s,%s,'auto_dispatched','Available','Dispatched',%s,'Automatic',%s)""",
+                        (did, iid, explanation[:255], dispatcher_id))
+            cur.execute("UPDATE incidents SET status='In progress', last_fail_reason=NULL WHERE id=%s AND status='Open'", (iid,))
         return True, {"ambulance_code": best["ambulance_code"], "dispatch_id": did,
                       "explanation": explanation}
     except (ValueError, pymysql.err.IntegrityError) as e:
         fail_reason = str(e)
         query("""INSERT INTO dispatch_history
-                   (dispatch_id,action,previous_status,new_status,reason,dispatch_mode,
+                   (dispatch_id,incident_id,action,previous_status,new_status,reason,dispatch_mode,
                     auto_fail_reason,dispatcher_id)
-                 VALUES (0,'auto_dispatch_failed','Open','Open',%s,'Automatic',%s,%s)""",
-              (fail_reason[:255], fail_reason, dispatcher_id))
+                 VALUES (NULL,%s,'auto_dispatch_failed','Open','Open',%s,'Automatic',%s,%s)""",
+              (iid, fail_reason[:255], fail_reason, dispatcher_id))
+        query("UPDATE incidents SET last_fail_reason=%s WHERE id=%s", (fail_reason, iid))
         return False, {"reason": fail_reason}
 
 # ── Auto-dispatch API (admin triggers on demand) ─────────────────────────────
@@ -465,10 +492,11 @@ def incidents_needing_dispatch():
     """Incidents that are Open/In-progress with no active dispatch (auto-fail fallback panel)."""
     rows = query("""
         SELECT i.*,
-          (SELECT reason FROM dispatch_history
-           WHERE action='auto_dispatch_failed' AND
-                 (dispatch_id=0 OR dispatch_id IN (SELECT id FROM dispatches WHERE incident_id=i.id))
-           ORDER BY created_at DESC LIMIT 1) AS last_fail_reason,
+          COALESCE(i.last_fail_reason, (
+            SELECT reason FROM dispatch_history
+            WHERE action='auto_dispatch_failed' AND incident_id=i.id
+            ORDER BY created_at DESC LIMIT 1
+          )) AS last_fail_reason,
           (SELECT COUNT(*) FROM dispatches WHERE incident_id=i.id AND status='Active') AS active_dispatch_count
         FROM incidents i
         WHERE i.status IN ('Open','In progress')
@@ -527,14 +555,14 @@ def dispatch(iid):
                 pos = cur.fetchone()["p"]
                 cur.execute("UPDATE ambulances SET status='Dispatched',queue_position=%s WHERE id=%s", (pos, aid))
                 cur.execute("""INSERT INTO dispatch_history
-                                 (dispatch_id,action,previous_status,new_status,reason,dispatch_mode,
+                                 (dispatch_id,incident_id,action,previous_status,new_status,reason,dispatch_mode,
                                   dispatcher_id,override_reason)
-                               VALUES (%s,'dispatched','Available','Dispatched',%s,%s,%s,%s)""",
-                            (did, explanation[:255], mode_label, session["user_id"],
+                               VALUES (%s,%s,'dispatched','Available','Dispatched',%s,%s,%s,%s)""",
+                            (did, iid, explanation[:255], mode_label, session["user_id"],
                              override_reason[:255] if override_reason else None))
                 dispatched_ids.append(aid)
 
-            cur.execute("UPDATE incidents SET status='In progress' WHERE id=%s AND status='Open'", (iid,))
+            cur.execute("UPDATE incidents SET status='In progress', last_fail_reason=NULL WHERE id=%s AND status='Open'", (iid,))
     except ValueError as e:
         return fail(str(e), 409)
     except pymysql.err.IntegrityError:

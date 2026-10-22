@@ -14,7 +14,7 @@ Ranking (in order):
   2. Haversine straight-line distance as fallback (clearly labelled)
   3. Tie-break: available longest → lowest queue_position → ambulance code
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from services.haversine import haversine_km
 
 # GPS reading older than this is considered stale
@@ -34,7 +34,7 @@ def filter_eligible(
     """Return list of eligible ambulances with a rejection_reason for excluded ones."""
     need = {e.strip().lower() for e in (required_equipment or []) if e.strip()}
     eligible, excluded = [], []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     stale_cutoff = now - timedelta(minutes=max_location_age_minutes)
 
     for a in ambulances:

@@ -32,29 +32,72 @@ async function load() {
 }
 
 // ── Mode banner ────────────────────────────────────────────────────────────
+let modeSwitching = false;
+
 function updateModeBanner() {
   const banner = document.getElementById('dispatchModeBanner');
   const label  = document.getElementById('dispatchModeLabel');
+  const desc   = document.getElementById('dispatchModeDesc');
+  const btnToggle = document.getElementById('btnToggleMode');
   if (!banner || !label) return;
+
   if (currentMode === 'automatic') {
     banner.className = 'dispatch-mode-banner mode-automatic';
-    label.innerHTML  = '⚡ <strong>AUTOMATIC DISPATCH ACTIVE</strong> — New emergencies will be auto-assigned';
+    label.innerHTML  = '⚡ <strong>AI AUTOMATIC DISPATCH: ON</strong>';
+    if (desc) desc.textContent = 'Rule-based engine automatically assigns eligible ambulances';
+    if (btnToggle) {
+      btnToggle.className = 'btn btn-sm btn-outline-danger fw-semibold';
+      btnToggle.innerHTML = '⏸️ Turn AI Dispatch OFF';
+      btnToggle.disabled = modeSwitching;
+    }
   } else {
     banner.className = 'dispatch-mode-banner mode-manual';
-    label.innerHTML  = '🔧 <strong>MANUAL DISPATCH MODE</strong> — Dispatcher must review and confirm each dispatch';
+    label.innerHTML  = '🔧 <strong>MANUAL DISPATCH MODE</strong>';
+    if (desc) desc.textContent = 'Automatic dispatch paused — requests await dispatcher assignment';
+    if (btnToggle) {
+      btnToggle.className = 'btn btn-sm btn-success fw-semibold';
+      btnToggle.innerHTML = '⚡ Turn AI Dispatch ON';
+      btnToggle.disabled = modeSwitching;
+    }
   }
-  const btnManual = document.getElementById('btnSetManual');
-  const btnAuto   = document.getElementById('btnSetAutomatic');
-  if (btnManual) btnManual.disabled = currentMode === 'manual';
-  if (btnAuto)   btnAuto.disabled   = currentMode === 'automatic';
+}
+
+async function toggleMode() {
+  if (modeSwitching) return;
+  const targetMode = currentMode === 'automatic' ? 'manual' : 'automatic';
+  const actionText = targetMode === 'automatic' ? 'TURN ON AI Automatic Dispatch' : 'TURN OFF AI Automatic Dispatch and switch to Manual Mode';
+  
+  if (!confirm(`Are you sure you want to ${actionText}?`)) return;
+  const reason = prompt(`Please enter a reason for switching to ${targetMode.toUpperCase()} mode:`, `Administrative mode change to ${targetMode}`);
+  if (reason === null) return;
+  if (!reason.trim()) {
+    toast('A reason is required to switch dispatch modes.', 'warning');
+    return;
+  }
+
+  modeSwitching = true;
+  updateModeBanner();
+  try {
+    const r = await api('/api/settings/dispatch-mode', 'POST', {mode: targetMode, reason: reason.trim()});
+    if (r.success) {
+      toast(`✅ Successfully switched to ${targetMode.toUpperCase()} mode!`, 'success');
+      currentMode = targetMode;
+      updateModeBanner();
+      await load();
+    } else {
+      toast(`❌ Failed to change mode: ${r.error}`, 'danger');
+    }
+  } catch (err) {
+    toast(`❌ Communication error: ${err.message}`, 'danger');
+  } finally {
+    modeSwitching = false;
+    updateModeBanner();
+  }
 }
 
 async function setMode(mode) {
-  const reason = prompt(`Reason for switching to ${mode} mode?`, `Switched to ${mode} by dispatcher`);
-  if (reason === null) return;
-  const r = await api('/api/settings/dispatch-mode', 'POST', {mode, reason});
-  toast(r.success ? `✅ Mode set to ${mode}` : r.error, r.success ? 'success' : 'danger');
-  if (r.success) { currentMode = mode; updateModeBanner(); load(); }
+  if (mode === currentMode) return;
+  await toggleMode();
 }
 
 // ── Gemini status & settings ───────────────────────────────────────────────

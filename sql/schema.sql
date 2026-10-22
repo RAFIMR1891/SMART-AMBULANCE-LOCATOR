@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS ambulances (
   status                ENUM('Available','Assigned','Dispatched','En route','At scene','Transporting patient','Out of service') NOT NULL DEFAULT 'Available',
   capacity              INT NOT NULL DEFAULT 1,
   equipment             VARCHAR(255) DEFAULT '',
+  is_simulated          TINYINT(1) NOT NULL DEFAULT 0,
+  service_area          VARCHAR(100) NULL,
   last_location_update  DATETIME NULL,
   available_since       DATETIME NULL,
   queue_position        BIGINT NOT NULL DEFAULT 0,
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   estimated_patient_count   INT NOT NULL DEFAULT 1,
   priority                  ENUM('Critical','High','Medium','Low') NOT NULL DEFAULT 'High',
   status                    ENUM('Open','In progress','Closed','Cancelled') NOT NULL DEFAULT 'Open',
+  last_fail_reason          VARCHAR(500) NULL,
   reported_at               DATETIME DEFAULT CURRENT_TIMESTAMP,
   created_by                INT NULL,
   requester_user_id         INT NULL,
@@ -98,6 +101,9 @@ CREATE TABLE IF NOT EXISTS dispatches (
   distance_km               DECIMAL(8,3),
   estimated_travel_seconds  INT NULL,
   eta_source                VARCHAR(40) NOT NULL DEFAULT 'haversine_distance_fallback',
+  dispatch_mode             VARCHAR(30) NOT NULL DEFAULT 'Automatic',
+  decision_explanation      TEXT NULL,
+  auto_fail_reason          VARCHAR(500) NULL,
   completed_at              DATETIME NULL,
   active_ambulance_id       INT GENERATED ALWAYS AS (IF(status='Active', ambulance_id, NULL)) STORED,
   UNIQUE KEY uq_one_active_per_ambulance (active_ambulance_id),
@@ -106,17 +112,45 @@ CREATE TABLE IF NOT EXISTS dispatches (
   FOREIGN KEY (assigned_by) REFERENCES users(id)
 );
 
--- Dispatch history / audit log
+-- App settings (dispatch mode, persistent configuration)
+CREATE TABLE IF NOT EXISTS app_settings (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  setting_key VARCHAR(80)   NOT NULL UNIQUE,
+  value       VARCHAR(500)  NOT NULL DEFAULT '',
+  changed_by  INT           NULL,
+  changed_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (changed_by) REFERENCES users(id)
+);
+INSERT IGNORE INTO app_settings (setting_key, value) VALUES ('dispatch_mode', 'automatic');
+
+-- Dispatch history / audit log (nullable dispatch_id and incident_id)
 CREATE TABLE IF NOT EXISTS dispatch_history (
   id               INT AUTO_INCREMENT PRIMARY KEY,
-  dispatch_id      INT NOT NULL,
+  dispatch_id      INT NULL,
+  incident_id      INT NULL,
   action           VARCHAR(50) NOT NULL,
   previous_status  VARCHAR(30),
   new_status       VARCHAR(30),
   reason           VARCHAR(255),
+  dispatch_mode    VARCHAR(30) NULL,
+  auto_fail_reason VARCHAR(500) NULL,
+  dispatcher_id    INT NULL,
+  override_reason  VARCHAR(500) NULL,
   created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (dispatch_id) REFERENCES dispatches(id)
+  FOREIGN KEY (dispatch_id) REFERENCES dispatches(id) ON DELETE SET NULL,
+  FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE SET NULL,
+  FOREIGN KEY (dispatcher_id) REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- Schema migration history
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version VARCHAR(100) NOT NULL PRIMARY KEY,
+  applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT IGNORE INTO schema_migrations (version) VALUES
+  ('001_portals'),
+  ('002_pollachi_dispatch'),
+  ('003_history_nullable_dispatch');
 
 -- Ambulance GPS location history
 CREATE TABLE IF NOT EXISTS ambulance_locations (

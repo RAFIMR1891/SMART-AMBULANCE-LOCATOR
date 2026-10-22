@@ -5,15 +5,18 @@ Run: pytest tests/ -v --tb=short
 """
 import pytest, uuid, time
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def _utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 # ─────────────────────────── Helpers ─────────────────────────────────────────
 def make_ambulance(id=1, code="AMB-001", status="Available", capacity=2,
                    equipment="ALS,Oxygen", lat=10.655, lon=76.999,
                    driver_id=None, is_simulated=0, service_area="Pollachi",
                    last_update=None, available_since=None):
-    lu = last_update if last_update is not None else datetime.utcnow()
-    av = available_since if available_since is not None else datetime.utcnow() - timedelta(hours=1)
+    lu = last_update if last_update is not None else _utcnow()
+    av = available_since if available_since is not None else _utcnow() - timedelta(hours=1)
     return {
         "id": id, "ambulance_code": code, "status": status, "capacity": capacity,
         "equipment": equipment, "latitude": lat, "longitude": lon,
@@ -73,14 +76,14 @@ class TestEligibilityFiltering:
         assert "als" in excluded[0]["rejection_reason"].lower()
 
     def test_stale_gps_excluded(self):
-        stale_time = datetime.utcnow() - timedelta(minutes=120)
+        stale_time = _utcnow() - timedelta(minutes=120)
         ambs = [make_ambulance(last_update=stale_time)]
         eligible, excluded = filter_eligible(ambs, set(), max_location_age_minutes=60)
         assert len(eligible) == 0
         assert "stale" in excluded[0]["rejection_reason"].lower()
 
     def test_fresh_gps_passes(self):
-        fresh_time = datetime.utcnow() - timedelta(minutes=5)
+        fresh_time = _utcnow() - timedelta(minutes=5)
         ambs = [make_ambulance(last_update=fresh_time)]
         eligible, _ = filter_eligible(ambs, set(), max_location_age_minutes=60)
         assert len(eligible) == 1
@@ -159,9 +162,9 @@ class TestRanking:
         inc = make_incident()
         # same distance, different available_since
         a_old = make_ambulance(id=1, code="AMB-OLD", lat=10.651, lon=76.996,
-                               available_since=datetime.utcnow() - timedelta(hours=3))
+                               available_since=_utcnow() - timedelta(hours=3))
         a_new = make_ambulance(id=2, code="AMB-NEW", lat=10.651, lon=76.996,
-                               available_since=datetime.utcnow() - timedelta(minutes=10))
+                               available_since=_utcnow() - timedelta(minutes=10))
         ranked = rank([a_new, a_old], inc, etas={})
         assert ranked[0]["ambulance_code"] == "AMB-OLD"  # available longest → ranked first
 

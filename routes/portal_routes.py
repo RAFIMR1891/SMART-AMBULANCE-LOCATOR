@@ -70,8 +70,18 @@ def register(app, m):
     @app.get("/api/dispatch-history")
     @guard(STAFF)
     def history():
-        return ok(query("""SELECT h.*, a.ambulance_code, i.incident_code FROM dispatch_history h JOIN dispatches d ON d.id=h.dispatch_id
-                           JOIN ambulances a ON a.id=d.ambulance_id JOIN incidents i ON i.id=d.incident_id ORDER BY h.id DESC LIMIT 100"""))
+        return ok(query("""
+            SELECT h.*,
+                   COALESCE(a.ambulance_code, '-') AS ambulance_code,
+                   COALESCE(i.incident_code, '-') AS incident_code,
+                   u.name AS dispatcher_name
+            FROM dispatch_history h
+            LEFT JOIN dispatches d ON d.id = h.dispatch_id
+            LEFT JOIN ambulances a ON a.id = d.ambulance_id
+            LEFT JOIN incidents i ON (i.id = d.incident_id OR i.id = h.incident_id)
+            LEFT JOIN users u ON u.id = h.dispatcher_id
+            ORDER BY h.id DESC LIMIT 100
+        """))
 
     @app.post("/api/dispatches/<int:did>/cancel")
     @guard(STAFF)
@@ -89,8 +99,10 @@ def register(app, m):
                 return fail("Only an administrator can cancel while a patient is on board", 403)
             cur.execute("UPDATE dispatches SET status='Cancelled', completed_at=NOW() WHERE id=%s", (did,))
             cur.execute("UPDATE ambulances SET status='Available', available_since=NOW() WHERE id=%s", (d["ambulance_id"],))
-            cur.execute("INSERT INTO dispatch_history (dispatch_id,action,previous_status,new_status,reason) VALUES (%s,'cancelled',%s,'Available',%s)",
-                        (did, prev, reason[:255]))
+            cur.execute("""INSERT INTO dispatch_history
+                             (dispatch_id, incident_id, action, previous_status, new_status, reason, dispatcher_id)
+                           VALUES (%s, %s, 'cancelled', %s, 'Available', %s, %s)""",
+                        (did, d["incident_id"], prev, reason[:255], session["user_id"]))
             cur.execute("SELECT COUNT(*) n FROM dispatches WHERE incident_id=%s AND status='Active'", (d["incident_id"],))
             if cur.fetchone()["n"] == 0:
                 cur.execute("UPDATE incidents SET status='Open' WHERE id=%s AND status='In progress'", (d["incident_id"],))
@@ -119,7 +131,31 @@ def register(app, m):
         code = "INC-" + uuid.uuid4().hex[:8].upper()
         query("""INSERT INTO incidents (incident_code,title,description,incident_type,latitude,longitude,estimated_patient_count,priority,created_by,requester_user_id)
                  VALUES (%s,%s,%s,%s,%s,%s,%s,'High',%s,%s)""", (code, f"User request: {typ}", desc[:2000], typ, lat, lon, n, session["user_id"], session["user_id"]))
-        return ok({"incident_code": code}, 201)
+
+        inc = query("SELECT * FROM incidents WHERE incident_code=%s", (code,), one=True)
+        cur_mode = m._get_dispatch_mode()
+        assigned = False
+        dispatch_info = None
+        if cur_mode == "automatic":
+            assigned, dispatch_info = m._auto_dispatch(inc, session["user_id"])
+
+        inc_latest = query("SELECT id, incident_code, status, last_fail_reason FROM incidents WHERE id=%s", (inc["id"],), one=True)
+        if assigned:
+            dispatch_status = "assigned"
+        elif cur_mode == "automatic":
+            dispatch_status = "needs_human_action"
+        else:
+            dispatch_status = "awaiting_dispatch"
+
+        return ok({
+            "incident_id": inc_latest["id"],
+            "incident_code": code,
+            "dispatch_status": dispatch_status,
+            "assigned": assigned,
+            "mode": cur_mode,
+            "ambulance_code": (dispatch_info or {}).get("ambulance_code") if assigned else None,
+            "dispatch_info": dispatch_info
+        }, 201)
 
     @app.get("/api/user/requests")
     @guard(["user"])
@@ -139,7 +175,7 @@ def register(app, m):
         etas, err = traffic_etas([{"id": x["aid"], "latitude": x["latitude"], "longitude": x["longitude"]} for x in ds], r)
         for x in ds:
             x["eta_seconds"] = etas.get(x.pop("aid"))  # null when unavailable; never invented
-        keep = {k: r[k] for k in ("incident_code", "incident_type", "description", "status", "reported_at", "latitude", "longitude", "estimated_patient_count")}
+        keep = {k: r[k] for k in ("incident_code", "incident_type", "description", "status", "reported_at", "latitude", "longitude", "estimated_patient_count", "last_fail_reason") if k in r}
         return ok({**keep, "ambulances": ds}, eta_note=err or "ETA is traffic-aware (Google Routes). Location is last reported, not live tracking.")
 
     @app.post("/api/user/requests/<int:rid>/cancel")
@@ -186,15 +222,20 @@ def register(app, m):
         with transaction() as cur:
             cur.execute("SELECT id,status FROM ambulances WHERE driver_user_id=%s FOR UPDATE", (session["user_id"],)); a = cur.fetchone()
             if not a: return fail("No ambulance linked to your account", 404)
-            cur.execute("SELECT id FROM dispatches WHERE ambulance_id=%s AND status='Active' FOR UPDATE", (a["id"],)); ds = cur.fetchone()
+            cur.execute("SELECT id, incident_id FROM dispatches WHERE ambulance_id=%s AND status='Active' FOR UPDATE", (a["id"],)); ds = cur.fetchone()
             if not ds: return fail("You have no active assignment", 409)
             if a["status"] not in FLOW[st]: return fail(f"Cannot change from '{a['status']}' to '{st}'", 409)
             new = "Available" if st == "Completed" else st
             if st == "Completed":
                 cur.execute("UPDATE dispatches SET status='Completed', completed_at=NOW() WHERE id=%s", (ds["id"],))
+                cur.execute("SELECT COUNT(*) n FROM dispatches WHERE incident_id=%s AND status='Active'", (ds["incident_id"],))
+                if cur.fetchone()["n"] == 0:
+                    cur.execute("UPDATE incidents SET status='Closed' WHERE id=%s AND status IN ('Open','In progress')", (ds["incident_id"],))
             cur.execute("UPDATE ambulances SET status=%s, available_since=IF(%s='Available',NOW(),available_since) WHERE id=%s", (new, new, a["id"]))
-            cur.execute("INSERT INTO dispatch_history (dispatch_id,action,previous_status,new_status,reason) VALUES (%s,'driver_status',%s,%s,%s)",
-                        (ds["id"], a["status"], new, f"Driver reported: {st}"))
+            cur.execute("""INSERT INTO dispatch_history
+                             (dispatch_id, incident_id, action, previous_status, new_status, reason, dispatcher_id)
+                           VALUES (%s, %s, 'driver_status', %s, %s, %s, %s)""",
+                        (ds["id"], ds["incident_id"], a["status"], new, f"Driver reported: {st}", session["user_id"]))
         return ok({"status": new})
 
     @app.post("/api/driver/location")

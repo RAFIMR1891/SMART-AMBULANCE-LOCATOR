@@ -37,20 +37,23 @@ function renderAmbulanceBanner() {
   const el = document.getElementById('d_amb');
   if (!el) return;
   const a = me.ambulance;
+  const u = me.user || {};
   if (a) {
     el.innerHTML = `
       <div class="d-flex align-items-center gap-3 flex-wrap">
-        <span style="font-size:2rem">🚑</span>
+        <span style="font-size:2.4rem">🚑</span>
         <div>
-          <div class="fw-800 fs-5">${esc(a.ambulance_code)}</div>
-          <div style="opacity:.8;font-size:.85rem">${esc(a.registration_number)} &middot; ${when(a.last_location_update)}</div>
+          <div class="fw-800 fs-5">${esc(a.ambulance_code)} <span class="badge bg-light text-dark ms-2" style="font-size:.75rem">${esc(a.registration_number)}</span></div>
+          <div style="opacity:.9;font-size:.85rem">📍 <b>${esc(a.service_area || 'Pollachi Region')}</b> &middot; ${when(a.last_location_update)}</div>
+          <div style="opacity:.8;font-size:.78rem">👨‍✈️ Driver: <b>${esc(u.name || '')}</b> (${esc(u.email || '')}) &middot; Cap: ${a.capacity || 2} &middot; Equip: ${esc(a.equipment || 'Standard BLS')}</div>
         </div>
-        <div class="ms-auto">
+        <div class="ms-auto text-end">
           <span class="status-pill pill-available" style="background:rgba(255,255,255,.2);color:#fff">${esc(a.status)}</span>
+          ${a.is_simulated ? '<div class="badge bg-info mt-1 text-white" style="font-size:.7rem">Simulated Fleet</div>' : ''}
         </div>
       </div>`;
   } else {
-    el.innerHTML = `<div style="opacity:.8">${esc(r?.note || 'No ambulance linked. Contact an administrator.')}</div>`;
+    el.innerHTML = `<div style="opacity:.8">No ambulance linked. Contact an administrator.</div>`;
   }
 }
 
@@ -182,6 +185,7 @@ async function loadProfile() {
   const r = await api('/api/me');
   const el = document.getElementById('prof');
   if (!el) return;
+  const a = me?.ambulance || {};
   if (r.success) {
     el.innerHTML = `
       <div class="row g-3">
@@ -189,12 +193,19 @@ async function loadProfile() {
           <div style="width:72px;height:72px;border-radius:50%;background:var(--blue);color:#fff;font-size:1.8rem;display:grid;place-items:center;margin:0 auto;font-weight:700">
             ${(r.data.name || '?')[0].toUpperCase()}
           </div>
-          <div class="fw-700 mt-2">${esc(r.data.name)}</div>
-          <div class="text-muted small">Driver</div>
+          <div class="fw-700 mt-2 fs-5">${esc(r.data.name)}</div>
+          <span class="badge bg-primary">Emergency Ambulance Driver</span>
         </div>
-        <div class="col-md-6"><div class="small text-muted">Email</div><div class="fw-600">${esc(r.data.email)}</div></div>
-        <div class="col-md-6"><div class="small text-muted">Phone</div><div class="fw-600">${esc(r.data.phone || '—')}</div></div>
-        <div class="col-md-6"><div class="small text-muted">Member Since</div><div class="fw-600">${when(r.data.created_at)}</div></div>
+        <div class="col-md-6"><div class="small text-muted">Email (Staff ID)</div><div class="fw-600">${esc(r.data.email)}</div></div>
+        <div class="col-md-6"><div class="small text-muted">Contact Phone</div><div class="fw-600">${esc(r.data.phone || '9800000101')}</div></div>
+        <div class="col-12"><hr class="my-2"></div>
+        <div class="col-12"><h6>🚑 Assigned Ambulance Details (Pollachi Fleet)</h6></div>
+        <div class="col-md-6"><div class="small text-muted">Ambulance Code</div><div class="fw-700 text-primary">${esc(a.ambulance_code || 'Unassigned')}</div></div>
+        <div class="col-md-6"><div class="small text-muted">Registration Number</div><div class="fw-600">${esc(a.registration_number || '—')}</div></div>
+        <div class="col-md-6"><div class="small text-muted">Assigned Area</div><div class="fw-600">📍 ${esc(a.service_area || 'Pollachi Region')}</div></div>
+        <div class="col-md-6"><div class="small text-muted">Operational Status</div><div><span class="badge bg-success">${esc(a.status || 'Available')}</span></div></div>
+        <div class="col-md-6"><div class="small text-muted">Patient Capacity</div><div class="fw-600">${a.capacity || 2} Patients</div></div>
+        <div class="col-md-6"><div class="small text-muted">Medical Equipment</div><div class="fw-600 small">${esc(a.equipment || 'ALS,Oxygen')}</div></div>
       </div>`;
   }
 }

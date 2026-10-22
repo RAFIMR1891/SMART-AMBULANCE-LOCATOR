@@ -1,27 +1,46 @@
 {% extends "shell.html" %}
 {% block title %}Admin Dashboard — Smart Ambulance Locator{% endblock %}
 {% block nav %}
-<a href="#dashboard"  data-sec="dashboard"><i>🏠</i> Dashboard</a>
-<a href="#requests"   data-sec="requests"><i>🚨</i> Emergency Requests</a>
+<a href="#dashboard"  data-sec="dashboard"> <i>🏠</i> Dashboard</a>
+<a href="#requests"   data-sec="requests">  <i>🚨</i> Emergency Requests</a>
+<a href="#fallback"   data-sec="fallback">  <i>⚠️</i> <span id="navFallbackBadge">Dispatcher Fallback</span></a>
 <a href="#ambulances" data-sec="ambulances"><i>🚑</i> Ambulances</a>
-<a href="#hospitals"  data-sec="hospitals"><i>🏥</i> Hospitals</a>
-<a href="#users"      data-sec="users"><i>👥</i> Users</a>
-<a href="#reports"    data-sec="reports"><i>📊</i> Reports</a>
-<a href="#ai"         data-sec="ai"><i>✨</i> Gemini AI Assistant</a>
+<a href="#hospitals"  data-sec="hospitals"> <i>🏥</i> Hospitals</a>
+<a href="#users"      data-sec="users">     <i>👥</i> Users</a>
+<a href="#reports"    data-sec="reports">   <i>📊</i> Reports</a>
+<a href="#ai"         data-sec="ai">        <i>✨</i> AI Assistant</a>
 {% endblock %}
 
 {% block content %}
-<!-- ── Dashboard ──────────────────────────────────── -->
+<!-- ══ DISPATCH MODE BANNER ══════════════════════════════════════════════════ -->
+<div id="dispatchModeBanner" class="dispatch-mode-banner">
+  <span id="dispatchModeLabel">Loading mode…</span>
+  {% if role == 'admin' %}
+  <div class="mode-controls">
+    <button id="btnSetManual"    class="btn btn-sm btn-outline-light" onclick="setMode('manual')">🔧 Manual</button>
+    <button id="btnSetAutomatic" class="btn btn-sm btn-outline-warning" onclick="setMode('automatic')">⚡ Auto-Dispatch</button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ Dashboard ════════════════════════════════════════════════════════════ -->
 <div class="sec" id="dashboard">
   <h2 class="page-title">Admin Dashboard</h2>
 
-  <!-- Summary stats -->
-  <div class="stat-cards" id="a_stats">
-    <!-- filled by JS -->
+  <!-- Summary cards -->
+  <div id="a_stats" class="stat-cards"><!-- filled by JS --></div>
+
+  <!-- Auto-fail alert banner -->
+  <div id="failureBanner" class="alert alert-danger d-none mt-3">
+    <strong>⚠️ Automatic Dispatch Failures Detected!</strong>
+    <span id="failureBannerText"></span>
+    <a href="#fallback" data-sec="fallback" class="btn btn-danger btn-sm ms-3" onclick="nav('fallback')">
+      Go to Dispatcher Fallback Panel →
+    </a>
   </div>
 
   <div class="row g-3">
-    <!-- Active Emergency Requests table -->
+    <!-- Active Requests -->
     <div class="col-lg-7">
       <div class="cardx">
         <div class="cardx-header">
@@ -31,10 +50,10 @@
         <div class="table-responsive">
           <table class="table">
             <thead><tr>
-              <th>Time</th><th>Location</th><th>Type</th><th>Status</th><th>Action</th>
+              <th>Time</th><th>Location</th><th>Type</th><th>Status</th><th>Dispatch Mode</th><th>Actions</th>
             </tr></thead>
             <tbody id="a_active">
-              <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -45,80 +64,124 @@
     <div class="col-lg-5">
       <div class="cardx">
         <div class="cardx-header">
-          <h6>🗺️ Ambulance Locations</h6>
+          <h6>🗺️ Ambulance Locations (Pollachi Fleet)</h6>
           <small class="text-muted" id="mapNote"></small>
         </div>
         <div id="amap" class="gmap"></div>
+        <div class="p-2">
+          <div class="d-flex gap-2 flex-wrap" style="font-size:.75rem">
+            <span><span class="dot-available">●</span> Available</span>
+            <span><span class="dot-assigned">●</span> Assigned/En Route</span>
+            <span><span class="dot-oos">●</span> Out of Service</span>
+            <span><span class="dot-incident">●</span> Incident</span>
+            <span><span class="dot-simulated">⬡</span> Simulated</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ── Emergency Requests (full list) ─────────────── -->
+<!-- ══ Emergency Requests ═══════════════════════════════════════════════════ -->
 <div class="sec d-none" id="requests">
   <h2 class="page-title">🚨 Emergency Requests</h2>
 
   <div class="cardx">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex gap-2">
+        <select id="reqFilter" class="form-select form-select-sm" style="width:auto" onchange="renderIncidents()">
+          <option value="">All</option>
+          <option value="Open">Open</option>
+          <option value="In progress">In Progress</option>
+          <option value="Closed">Closed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <button class="btn btn-sm btn-outline-primary" onclick="load()">🔄 Refresh</button>
+    </div>
     <div class="table-responsive">
       <table class="table">
         <thead><tr>
-          <th>Code</th><th>Reported</th><th>Type</th>
-          <th>Priority</th><th>Patients</th><th>Status</th><th>Actions</th>
+          <th>Incident ID</th><th>Reported</th><th>Type</th><th>Location</th>
+          <th>Patients</th><th>Status</th><th>Dispatch Mode</th><th>Actions</th>
         </tr></thead>
         <tbody id="a_inc">
-          <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr>
         </tbody>
       </table>
     </div>
-    <!-- Recommendation results -->
+    <!-- Recommendation panel -->
     <div id="rec"></div>
   </div>
 
-  <!-- Create incident form (admin/dispatcher) -->
+  <!-- Create incident form -->
   <div class="cardx">
     <h6>➕ Report a New Emergency</h6>
     <div class="row g-2">
       <div class="col-md-4"><input id="i_title" class="form-control" placeholder="Incident title"></div>
       <div class="col-md-3">
         <select id="i_type" class="form-select">
-          <option>Fire accident</option>
-          <option>Road accident</option>
-          <option>Cardiac emergency</option>
-          <option>Other emergency</option>
+          <option>Fire accident</option><option>Road accident</option>
+          <option>Cardiac emergency</option><option>Other emergency</option>
         </select>
       </div>
       <div class="col-md-2">
         <select id="i_prio" class="form-select">
-          <option>Critical</option>
-          <option selected>High</option>
-          <option>Medium</option>
-          <option>Low</option>
+          <option>Critical</option><option selected>High</option>
+          <option>Medium</option><option>Low</option>
         </select>
       </div>
       <div class="col-md-3"><input id="i_desc" class="form-control" placeholder="Description"></div>
-      <div class="col-md-2"><input id="i_lat" class="form-control" placeholder="Latitude"></div>
-      <div class="col-md-2"><input id="i_lon" class="form-control" placeholder="Longitude"></div>
+      <div class="col-md-2"><input id="i_lat" class="form-control" placeholder="Latitude (10.65…)"></div>
+      <div class="col-md-2"><input id="i_lon" class="form-control" placeholder="Longitude (76.99…)"></div>
       <div class="col-md-2"><input id="i_n" type="number" min="1" value="1" class="form-control" placeholder="Patients"></div>
       <div class="col-md-2">
-        <button class="btn btn-danger w-100" onclick="createIncident()">🚨 Create</button>
+        <button class="btn btn-danger w-100" id="btnCreateIncident" onclick="createIncident()">🚨 Create</button>
       </div>
     </div>
-    <small class="text-muted mt-1 d-block">Click the map on the Dashboard to auto-fill coordinates.</small>
+    <small class="text-muted mt-1 d-block">
+      💡 Click the map on Dashboard to auto-fill coordinates. Default centered on Pollachi, Tamil Nadu.
+    </small>
   </div>
 </div>
 
-<!-- ── Ambulances ─────────────────────────────────── -->
+<!-- ══ DISPATCHER FALLBACK PANEL ════════════════════════════════════════════ -->
+<div class="sec d-none" id="fallback">
+  <h2 class="page-title">⚠️ Dispatcher Fallback — Manual Takeover Required</h2>
+  <p class="text-muted">These incidents require human dispatcher action. Automatic dispatch failed or was not attempted.</p>
+  <div id="fallbackContent">
+    <div class="text-center py-5 text-muted">Loading…</div>
+  </div>
+</div>
+
+<!-- ══ Ambulances ════════════════════════════════════════════════════════════ -->
 <div class="sec d-none" id="ambulances">
   <h2 class="page-title">🚑 Ambulance Fleet</h2>
+
+  <!-- Fleet filter bar -->
+  <div class="cardx mb-3">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <strong>Filter:</strong>
+      <button class="btn btn-sm btn-outline-secondary active" onclick="filterAmb('')">All</button>
+      <button class="btn btn-sm btn-outline-success"          onclick="filterAmb('Available')">Available</button>
+      <button class="btn btn-sm btn-outline-warning"          onclick="filterAmb('Assigned')">Assigned</button>
+      <button class="btn btn-sm btn-outline-info"             onclick="filterAmb('En route')">En Route</button>
+      <button class="btn btn-sm btn-outline-danger"           onclick="filterAmb('Out of service')">Out of Service</button>
+      <button class="btn btn-sm btn-outline-primary"          onclick="filterAmb('simulated')">🔵 Simulated</button>
+      <button class="btn btn-sm btn-outline-dark"             onclick="filterAmb('real')">✅ Verified Real</button>
+      <span class="ms-auto text-muted small" id="ambFilterLabel">Showing all</span>
+    </div>
+  </div>
+
   <div class="cardx">
     <div class="table-responsive">
       <table class="table">
         <thead><tr>
-          <th>ID</th><th>Registration</th><th>Driver</th>
-          <th>Status</th><th>Location</th><th>Last Update</th><th>Assignment</th>
+          <th>ID</th><th>Registration</th><th>Driver</th><th>Status</th>
+          <th>Location</th><th>Last GPS</th><th>Capacity</th><th>Equipment</th><th>Assignment</th><th>Type</th>
         </tr></thead>
         <tbody id="a_amb">
-          <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
+          <tr><td colspan="10" class="text-center text-muted py-4">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -127,18 +190,24 @@
   <div class="cardx">
     <h6>➕ Register New Ambulance</h6>
     <div class="row g-2">
-      <div class="col-md-2"><input id="n_code" class="form-control" placeholder="AMB-104"></div>
-      <div class="col-md-2"><input id="n_reg"  class="form-control" placeholder="Registration No."></div>
+      <div class="col-md-2"><input id="n_code" class="form-control" placeholder="AMB-016"></div>
+      <div class="col-md-2"><input id="n_reg"  class="form-control" placeholder="TN33-A-1116"></div>
       <div class="col-md-2"><input id="n_lat"  class="form-control" placeholder="Latitude"></div>
       <div class="col-md-2"><input id="n_lon"  class="form-control" placeholder="Longitude"></div>
-      <div class="col-md-1"><input id="n_cap"  type="number" min="1" value="1" class="form-control" title="Capacity"></div>
+      <div class="col-md-1"><input id="n_cap"  type="number" min="1" value="2" class="form-control" title="Capacity"></div>
       <div class="col-md-2"><input id="n_eq"   class="form-control" placeholder="ALS,Oxygen"></div>
-      <div class="col-md-1"><button class="btn btn-primary w-100" onclick="addAmb()">Add</button></div>
+      <div class="col-md-1">
+        <select id="n_sim" class="form-select" title="Type">
+          <option value="1">Simulated</option>
+          <option value="0">Real</option>
+        </select>
+      </div>
+      <div class="col-md-2"><button class="btn btn-primary w-100" onclick="addAmb()">Add</button></div>
     </div>
   </div>
 </div>
 
-<!-- ── Hospitals ──────────────────────────────────── -->
+<!-- ══ Hospitals ════════════════════════════════════════════════════════════ -->
 <div class="sec d-none" id="hospitals">
   <h2 class="page-title">🏥 Hospitals</h2>
   <div class="cardx">
@@ -147,27 +216,22 @@
         <thead><tr>
           <th>Name</th><th>Address</th><th>Contact</th><th>Services</th><th>Last Verified</th>
         </tr></thead>
-        <tbody id="a_hosp">
-          <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
-        </tbody>
+        <tbody id="a_hosp"><tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr></tbody>
       </table>
     </div>
-    <small class="text-muted">Hospital records are managed by administrators via the database.</small>
   </div>
 </div>
 
-<!-- ── Users ──────────────────────────────────────── -->
+<!-- ══ Users ════════════════════════════════════════════════════════════════ -->
 <div class="sec d-none" id="users">
-  <h2 class="page-title">👥 Users &amp; Drivers</h2>
+  <h2 class="page-title">👥 Users & Drivers</h2>
   <div class="cardx">
     <div class="table-responsive">
       <table class="table">
         <thead><tr>
           <th>Name</th><th>Email</th><th>Role</th><th>Ambulance</th><th>Active</th>
         </tr></thead>
-        <tbody id="a_users">
-          <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
-        </tbody>
+        <tbody id="a_users"><tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -181,9 +245,7 @@
       <div class="col-md-2"><input id="u_pw"    type="password" class="form-control" placeholder="Password"></div>
       <div class="col-md-2">
         <select id="u_role" class="form-select">
-          <option>driver</option>
-          <option>dispatcher</option>
-          <option>admin</option>
+          <option>driver</option><option>dispatcher</option><option>admin</option>
         </select>
       </div>
       <div class="col-md-1"><input id="u_amb" class="form-control" placeholder="Amb ID"></div>
@@ -193,53 +255,78 @@
   {% endif %}
 </div>
 
-<!-- ── Reports ─────────────────────────────────────── -->
+<!-- ══ Reports ══════════════════════════════════════════════════════════════ -->
 <div class="sec d-none" id="reports">
-  <h2 class="page-title">📊 Reports &amp; History</h2>
+  <h2 class="page-title">📊 Reports & Dispatch History</h2>
 
   <div class="cardx">
-    <h6>Active &amp; Recent Dispatches</h6>
+    <h6>Active & Recent Dispatches</h6>
     <div class="table-responsive">
       <table class="table">
         <thead><tr>
           <th>Ambulance</th><th>Incident</th><th>Distance</th>
-          <th>ETA Basis</th><th>Assigned</th><th>Status</th><th>Action</th>
+          <th>ETA Basis</th><th>Mode</th><th>Assigned</th><th>Status</th><th>Action</th>
         </tr></thead>
-        <tbody id="a_disp">
-          <tr><td colspan="7" class="text-center text-muted py-4">Loading…</td></tr>
-        </tbody>
+        <tbody id="a_disp"><tr><td colspan="8" class="text-center text-muted py-4">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
 
   <div class="cardx">
-    <h6>Dispatch History</h6>
-    <div id="a_hist" class="small" style="max-height:300px;overflow:auto">
+    <h6>Dispatch History Log</h6>
+    <div id="a_hist" class="small" style="max-height:350px;overflow:auto">
       <div class="text-muted">Loading…</div>
     </div>
   </div>
 </div>
 
-<!-- ── Gemini AI ───────────────────────────────────── -->
+<!-- ══ Gemini AI ════════════════════════════════════════════════════════════ -->
 <div class="sec d-none" id="ai">
   <h2 class="page-title">✨ Gemini AI Assistant</h2>
   <div class="cardx" style="max-width:800px">
     <p class="small text-muted">
-      Text-only incident analysis. All AI outputs are clearly marked as drafts for dispatcher review.
+      Text-only incident analysis. All AI outputs are clearly marked as DRAFTS for dispatcher review.
       The AI does not dispatch, assign triage, or make operational decisions.
     </p>
+    <div id="geminiStatus" class="alert alert-info py-2 small d-none"></div>
 
+    <!-- Gemini API Key configuration card -->
+    <div class="cardx mb-3 p-3 bg-light border">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0">🔑 Google Gemini API Key Settings</h6>
+        <span id="geminiKeyBadge" class="badge bg-secondary">Checking…</span>
+      </div>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-6">
+          <label class="form-label small mb-1">Gemini API Key</label>
+          <input type="password" id="geminiApiKeyInput" class="form-control form-control-sm" placeholder="Paste Google Gemini API Key (AIzaSy...)">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Model</label>
+          <select id="geminiModelInput" class="form-select form-select-sm">
+            <option value="gemini-1.5-flash-latest" selected>gemini-1.5-flash-latest</option>
+            <option value="gemini-1.5-pro-latest">gemini-1.5-pro-latest</option>
+            <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary btn-sm w-100" onclick="saveGeminiSettings()">💾 Save Key</button>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-2">
+        <small class="text-muted">Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a>.</small>
+        <span id="geminiCurrentKeyLabel" class="small text-muted"></span>
+      </div>
+    </div>
     <div class="mb-3">
       <label class="form-label">Select Incident</label>
       <select id="ai_inc" class="form-select"></select>
     </div>
-
     <div class="d-flex gap-2 flex-wrap mb-3">
       <button class="btn btn-outline-primary btn-sm" onclick="ai('incident-summary')">📄 Incident Summary</button>
       <button class="btn btn-outline-primary btn-sm" onclick="ai('explain-allocation')">🔍 Explain Allocation</button>
       <button class="btn btn-outline-primary btn-sm" onclick="ai('generate-report')">📝 Draft Report</button>
     </div>
-
     <div id="aiSpinner" class="d-none">
       <div class="spinner-border spinner-border-sm text-primary me-2"></div> Generating…
     </div>

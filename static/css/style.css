@@ -385,3 +385,37 @@ body {
 .landing-footer { background: var(--blue-dark); color: rgba(255,255,255,.7); padding: 2.5rem 0; text-align: center; font-size: .875rem; }
 .landing-footer a { color: rgba(255,255,255,.7); text-decoration: none; }
 .landing-footer a:hover { color: #fff; }
+
+/* ─── Dispatch Mode Banner ─────────────────────────────────── */
+.dispatch-mode-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .75rem 1.5rem; font-size: .875rem; font-weight: 600;
+  border-radius: var(--radius-sm); margin-bottom: 1rem;
+  transition: var(--transition);
+}
+.mode-manual    { background: var(--blue-bg);   color: var(--blue-dark); border-left: 4px solid var(--blue); }
+.mode-automatic { background: #fff8e1;           color: #7c5900;         border-left: 4px solid var(--orange); }
+.mode-controls { display: flex; gap: .5rem; }
+
+/* ─── Dispatcher Fallback Cards ────────────────────────────── */
+.fallback-card {
+  border: 2px solid #fca5a5;
+  background: #fff8f8;
+  margin-bottom: 1rem;
+  animation: fadeIn .3s ease;
+}
+.fallback-card:hover { border-color: var(--red); }
+
+/* ─── Map Legend Dots ──────────────────────────────────────── */
+.dot-available  { color: #16a34a; font-size: 1.2rem; }
+.dot-assigned   { color: #d97706; font-size: 1.2rem; }
+.dot-oos        { color: #6b7280; font-size: 1.2rem; }
+.dot-incident   { color: #dc2626; font-size: 1.2rem; }
+.dot-simulated  { color: #0284c7; font-size: 1rem; }
+
+/* ─── Simulated badge in tables ────────────────────────────── */
+tr.table-secondary td { opacity: .85; }
+
+/* ─── Fallback nav badge ───────────────────────────────────── */
+#navFallbackBadge .badge { font-size: .65rem; vertical-align: middle; }
+

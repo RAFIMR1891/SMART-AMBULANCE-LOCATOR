@@ -64,9 +64,54 @@
       <!-- Submit -->
       <button class="btn btn-primary w-100 py-2 mb-3" id="go">Login</button>
 
-      <p class="text-center small mb-0" style="color:var(--text-muted)">
+      <p class="text-center small mb-3" style="color:var(--text-muted)">
         Don't have an account? <a href="/signup" class="text-primary fw-600">Sign Up</a>
       </p>
+
+      <!-- Demo Staff Credentials Panel (Pollachi Area) -->
+      <div class="mt-2 pt-2 border-top">
+        <details>
+          <summary class="small text-primary fw-600" style="cursor:pointer">
+            📋 Quick Staff Credentials (Pollachi Fleet)
+          </summary>
+          <div class="p-2 mt-2 bg-light rounded small border">
+            <div class="d-flex gap-1 flex-wrap mb-2">
+              <button type="button" class="btn btn-xs btn-outline-danger py-0 px-2" style="font-size:.72rem"
+                onclick="fillCreds('admin@sal.com', 'Admin@123', 'admin')">Admin</button>
+              <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size:.72rem"
+                onclick="fillCreds('ravi.sharma@sal.com', 'Ravi@123', 'admin')">Dispatcher</button>
+              <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" style="font-size:.72rem"
+                onclick="fillCreds('murugan.selvam@sal.com', 'Murugan@123', 'driver')">AMB-001 (Pollachi Central)</button>
+              <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" style="font-size:.72rem"
+                onclick="fillCreds('balamurugan.a@sal.com', 'Bala@123', 'driver')">AMB-004 (Anaimalai)</button>
+              <button type="button" class="btn btn-xs btn-outline-success py-0 px-2" style="font-size:.72rem"
+                onclick="fillCreds('arunachalam.v@sal.com', 'Arun@123', 'driver')">AMB-006 (Valparai)</button>
+            </div>
+            <div class="mb-1">
+              <label class="form-label" style="font-size:.7rem;margin-bottom:2px">Select Pollachi Fleet Driver:</label>
+              <select class="form-select form-select-sm" style="font-size:.75rem" onchange="if(this.value){const p=this.value.split('|');fillCreds(p[0],p[1],'driver');}">
+                <option value="">-- Choose Driver (AMB-001 to 015) --</option>
+                <option value="murugan.selvam@sal.com|Murugan@123">AMB-001 (TN33-A-1101) - Murugan Selvam [Pollachi Central]</option>
+                <option value="senthil.kumar@sal.com|Senthil@123">AMB-002 (TN33-A-1102) - Senthil Kumar [Pollachi Central]</option>
+                <option value="durai.pandian@sal.com|Durai@123">AMB-003 (TN33-A-1103) - Durai Pandian [Pollachi Central]</option>
+                <option value="balamurugan.a@sal.com|Bala@123">AMB-004 (TN33-A-1104) - Balamurugan A [Anaimalai]</option>
+                <option value="kannan.raj@sal.com|Kannan@123">AMB-005 (TN33-A-1105) - Kannan Raj [Anaimalai South]</option>
+                <option value="arunachalam.v@sal.com|Arun@123">AMB-006 (TN33-A-1106) - Arunachalam V [Valparai]</option>
+                <option value="velmurugan.t@sal.com|Vel@123">AMB-007 (TN33-A-1107) - Velmurugan T [Udumalaipettai]</option>
+                <option value="ganesan.p@sal.com|Ganesan@123">AMB-008 (TN33-A-1108) - Ganesan P [Palladam]</option>
+                <option value="thiruvenkatam.s@sal.com|Thiru@123">AMB-009 (TN33-A-1109) - Thiruvenkatam S [Kinathukadavu]</option>
+                <option value="rajasekar.m@sal.com|Raja@123">AMB-010 (TN33-A-1110) - Rajasekar M [Coimbatore South]</option>
+                <option value="palanisamy.k@sal.com|Palani@123">AMB-011 (TN33-A-1111) - Palanisamy K [Ethapur]</option>
+                <option value="subramanian.g@sal.com|Subra@123">AMB-012 (TN33-A-1112) - Subramanian G [Dharapuram]</option>
+                <option value="marimuthu.c@sal.com|Mari@123">AMB-013 (TN33-A-1113) - Marimuthu C [Pollachi West]</option>
+                <option value="krishnamurthy.l@sal.com|Krish@123">AMB-014 (TN33-A-1114) - Krishnamurthy L [Pollachi East]</option>
+                <option value="annadurai.b@sal.com|Anna@123">AMB-015 (TN33-A-1115) - Annadurai B [Pollachi Bypass]</option>
+              </select>
+            </div>
+            <div class="text-muted" style="font-size:.68rem">Clicking any staff credential auto-fills email, password, and role.</div>
+          </div>
+        </details>
+      </div>
     </div>
   </div>
 </div>
@@ -74,6 +119,13 @@
 {% block scripts %}
 <script>
 const HOME = {admin:'/dashboard', dispatcher:'/dashboard', driver:'/driver', user:'/user'};
+
+function fillCreds(em, p, r) {
+  document.getElementById('email').value = em;
+  document.getElementById('pw').value = p;
+  document.getElementById('role').value = r;
+  document.getElementById('loginErr').classList.add('d-none');
+}
 
 pwToggle.addEventListener('click', () => {
   pw.type = pw.type === 'password' ? 'text' : 'password';

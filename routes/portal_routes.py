@@ -59,7 +59,8 @@ def register(app, m):
     @app.get("/api/admin/users")
     @guard(STAFF)
     def list_users():
-        return ok(query("""SELECT u.id,u.name,u.email,u.role,u.is_active,u.created_at,a.ambulance_code
+        return ok(query("""SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at,
+                                  a.ambulance_code, a.registration_number, a.service_area
                            FROM users u LEFT JOIN ambulances a ON a.driver_user_id=u.id ORDER BY u.id DESC"""))
 
     @app.get("/api/hospitals")
@@ -166,9 +167,16 @@ def register(app, m):
                   i.incident_code,i.title,i.incident_type,i.description,i.latitude,i.longitude,i.priority,i.estimated_patient_count"""
         base = f"SELECT {cols} FROM dispatches d JOIN incidents i ON i.id=d.incident_id WHERE d.ambulance_id=%s"
         cnt = {r["status"]: r["n"] for r in query("SELECT status, COUNT(*) n FROM dispatches WHERE ambulance_id=%s GROUP BY status", (a["id"],))}
-        return ok({"counts": cnt, "ambulance": {k: a[k] for k in ("ambulance_code", "registration_number", "status", "latitude", "longitude", "last_location_update")},
-                   "assignments": query(base + " AND d.status='Active'", (a["id"],)),
-                   "history": query(base + " AND d.status<>'Active' ORDER BY d.id DESC LIMIT 20", (a["id"],))})
+        u = query("SELECT id, name, email, phone, role FROM users WHERE id=%s", (session["user_id"],), one=True)
+        amb_fields = ("id", "ambulance_code", "registration_number", "status", "latitude", "longitude",
+                      "last_location_update", "service_area", "capacity", "equipment", "is_simulated")
+        return ok({
+            "user": u,
+            "counts": cnt,
+            "ambulance": {k: a.get(k) for k in amb_fields},
+            "assignments": query(base + " AND d.status='Active'", (a["id"],)),
+            "history": query(base + " AND d.status<>'Active' ORDER BY d.id DESC LIMIT 20", (a["id"],))
+        })
 
     @app.patch("/api/driver/status")
     @guard(["driver"])

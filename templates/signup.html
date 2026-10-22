@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Create an Account — Smart Ambulance Locator{% endblock %}
+{% block body %}
+<div class="auth-bg">
+  <!-- Left panel -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <div class="mb-4">🚑</div>
+      <h2>Join Us Today</h2>
+      <p>Create your patient account and get access to the fastest emergency ambulance dispatch system in your area.</p>
+    </div>
+  </div>
+
+  <!-- Right panel (signup form) -->
+  <div class="auth-right">
+    <div class="auth-card">
+      <div class="auth-logo">
+        {% include "_logo.html" %}
+      </div>
+      <h4>Create an Account</h4>
+
+      <!-- Role (fixed to user for public registration) -->
+      <div class="mb-3">
+        <label class="form-label">Select Role</label>
+        <select class="form-select" disabled>
+          <option>User (Patient)</option>
+        </select>
+        <div class="form-text" style="font-size:.78rem">Driver and dispatcher accounts are created by an administrator.</div>
+      </div>
+
+      <!-- Full name -->
+      <div class="mb-3">
+        <label class="form-label" for="rn">Full Name</label>
+        <div class="input-with-icon">
+          <span class="icon">👤</span>
+          <input id="rn" class="form-control" placeholder="Enter your full name" autocomplete="name">
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div class="mb-3">
+        <label class="form-label" for="re">Email</label>
+        <div class="input-with-icon">
+          <span class="icon">✉️</span>
+          <input id="re" type="email" class="form-control" placeholder="Enter your email" autocomplete="email">
+        </div>
+      </div>
+
+      <!-- Phone -->
+      <div class="mb-3">
+        <label class="form-label" for="rph">Phone Number</label>
+        <div class="input-with-icon">
+          <span class="icon">📞</span>
+          <input id="rph" class="form-control" placeholder="Enter your phone number" autocomplete="tel">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="mb-4">
+        <label class="form-label" for="rp">Password</label>
+        <div class="input-group">
+          <span class="input-group-text">🔒</span>
+          <input id="rp" type="password" class="form-control" placeholder="Min 8 characters" autocomplete="new-password">
+          <button class="pw-toggle-btn btn btn-outline-secondary" type="button" id="rpToggle">👁</button>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div id="regErr" class="alert alert-danger py-2 small d-none" role="alert"></div>
+
+      <!-- Submit -->
+      <button class="btn btn-primary w-100 py-2 mb-3" id="reg">Sign Up</button>
+
+      <p class="text-center small mb-0" style="color:var(--text-muted)">
+        Already have an account? <a href="/login" class="text-primary fw-600">Login</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+rpToggle.addEventListener('click', () => {
+  rp.type = rp.type === 'password' ? 'text' : 'password';
+  rpToggle.textContent = rp.type === 'password' ? '👁' : '🙈';
+});
+
+reg.addEventListener('click', async () => {
+  const errEl = document.getElementById('regErr');
+  errEl.classList.add('d-none');
+  reg.disabled = true; reg.textContent = 'Creating account…';
+  const r = await api('/api/auth/register', 'POST', {
+    name: rn.value.trim(),
+    email: re.value.trim(),
+    phone: rph.value.trim(),
+    password: rp.value
+  });
+  reg.disabled = false; reg.textContent = 'Sign Up';
+  if (r.success) {
+    toast('✅ Account created! Redirecting to login…');
+    setTimeout(() => location.href = '/login', 1400);
+  } else {
+    errEl.textContent = r.error || 'Registration failed. Please try again.';
+    errEl.classList.remove('d-none');
+  }
+});
+
+rp.addEventListener('keydown', e => { if (e.key === 'Enter') reg.click(); });
+</script>
+{% endblock %}

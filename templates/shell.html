@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="side" id="sidebar">
+    <a class="side-brand" href="/">{% include "_logo.html" %}</a>
+    <nav>
+      {% block nav %}{% endblock %}
+      <a href="#" class="logout-link" onclick="logout();return false">
+        <i>🚪</i> Logout
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main content area -->
+  <div class="main">
+    <!-- Top header -->
+    <header class="top">
+      <button class="burger" onclick="document.body.classList.toggle('nav-open')" aria-label="Toggle navigation">☰</button>
+      <div class="top-right">
+        <div class="avatar-wrap">
+          <div class="avatar">{{ (user or '?')[:1].upper() }}</div>
+          <div class="avatar-info">
+            <div class="name">{{ user or 'User' }}</div>
+            <div class="role-badge">{{ role_label or 'User' }}</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Mobile overlay -->
+<div class="nav-overlay d-lg-none" onclick="document.body.classList.remove('nav-open')" style="display:none!important;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199"></div>
+{% endblock %}
+{% block scripts %}{% endblock %}

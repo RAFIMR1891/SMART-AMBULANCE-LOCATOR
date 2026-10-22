@@ -1,0 +1,164 @@
+{% extends "shell.html" %}
+{% block title %}Patient Portal — Smart Ambulance Locator{% endblock %}
+{% block nav %}
+<a href="#dashboard" data-sec="dashboard"><i>🏠</i> Dashboard</a>
+<a href="#request"   data-sec="request"><i>🚑</i> Request Ambulance</a>
+<a href="#requests"  data-sec="requests"><i>📋</i> My Requests</a>
+<a href="#track"     data-sec="track"><i>📍</i> Track Ambulance</a>
+<a href="#profile"   data-sec="profile"><i>👤</i> Profile</a>
+{% endblock %}
+
+{% block content %}
+<!-- ── Dashboard ───────────────────────────────────── -->
+<div class="sec" id="dashboard">
+  <h2 class="page-title">Welcome back, {{ user }}! 👋</h2>
+
+  <div class="stat-cards" id="u_stats">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="cardx">
+    <div class="cardx-header">
+      <h6>Recent Requests</h6>
+      <a href="#request" class="btn btn-danger btn-sm">🚨 Request an Ambulance</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr>
+          <th>#</th><th>Date &amp; Time</th><th>Location</th>
+          <th>Emergency Type</th><th>Status</th><th>Ambulance</th>
+        </tr></thead>
+        <tbody id="u_recent">
+          <tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-warning small mb-0" role="alert">
+      ⚠️ In a life-threatening emergency, also call your local emergency number. This app does not replace it.
+    </div>
+  </div>
+</div>
+
+<!-- ── Request Ambulance ───────────────────────────── -->
+<div class="sec d-none" id="request">
+  <h2 class="page-title">🚑 Request an Ambulance</h2>
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="cardx">
+        <h6>📍 Current Location</h6>
+
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-primary btn-sm flex-grow-1" onclick="useGps()" id="gpsBtn">
+            📡 Use My Current Location
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearPos()" title="Clear">✕</button>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">Latitude</label>
+            <input id="r_lat" class="form-control" placeholder="e.g. 17.3850">
+          </div>
+          <div class="col-6">
+            <label class="form-label">Longitude</label>
+            <input id="r_lon" class="form-control" placeholder="e.g. 78.4867">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Address</label>
+          <input id="r_addr" class="form-control" placeholder="Your current address (optional)">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Emergency Type</label>
+          <select id="r_type" class="form-select">
+            <option value="">Select emergency type</option>
+            <option>Fire accident</option>
+            <option>Road accident</option>
+            <option>Cardiac emergency</option>
+            <option>Other emergency</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Number of People Injured</label>
+          <input id="r_n" type="number" min="1" max="100" value="1" class="form-control">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label">Additional Information <span class="text-danger">*</span></label>
+          <textarea id="r_desc" class="form-control" rows="3" placeholder="Describe what happened (required)"></textarea>
+        </div>
+
+        <div id="reqErr" class="alert alert-danger py-2 small d-none"></div>
+        <button class="btn btn-danger w-100 py-2" id="send" onclick="sendReq()">
+          🚨 Submit Emergency Request
+        </button>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="cardx">
+        <div class="cardx-header">
+          <h6>📍 Select Location on Map</h6>
+          <small class="text-muted">Click map to set location</small>
+        </div>
+        <div id="rmap" class="gmap gmap-lg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── My Requests ────────────────────────────────── -->
+<div class="sec d-none" id="requests">
+  <h2 class="page-title">📋 My Ambulance Requests</h2>
+  <div class="cardx">
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr>
+          <th>#</th><th>Date &amp; Time</th><th>Location</th>
+          <th>Emergency Type</th><th>Status</th><th>Ambulance ID</th><th>Action</th>
+        </tr></thead>
+        <tbody id="u_all">
+          <tr><td colspan="7" class="text-center text-muted py-4">Loading your requests…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Track Ambulance ────────────────────────────── -->
+<div class="sec d-none" id="track">
+  <h2 class="page-title">🗺️ Track Your Ambulance</h2>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="cardx">
+        <div id="tmap" class="gmap gmap-lg"></div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="cardx">
+        <h6>Assignment Details</h6>
+        <div id="t_info">
+          <div class="text-muted text-center py-4">No active request to track.</div>
+        </div>
+        <div class="small text-muted mt-2" id="t_note"></div>
+        <div id="t_cancel" class="mt-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Profile ─────────────────────────────────────── -->
+<div class="sec d-none" id="profile">
+  <h2 class="page-title">👤 My Profile</h2>
+  <div class="cardx" style="max-width:560px" id="prof">
+    <div class="text-center text-muted py-4">Loading profile…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/user.js') }}"></script>
+{% endblock %}

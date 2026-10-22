@@ -1,0 +1,132 @@
+{% extends "shell.html" %}
+{% block title %}Driver Dashboard — Smart Ambulance Locator{% endblock %}
+{% block nav %}
+<a href="#dashboard"   data-sec="dashboard"><i>🏠</i> Dashboard</a>
+<a href="#assignments" data-sec="assignments"><i>📋</i> My Assignments</a>
+<a href="#status"      data-sec="status"><i>🔄</i> Update Status</a>
+<a href="#profile"     data-sec="profile"><i>👤</i> Profile</a>
+{% endblock %}
+
+{% block content %}
+<!-- ── Dashboard ──────────────────────────────────── -->
+<div class="sec" id="dashboard">
+  <h2 class="page-title">Driver Dashboard</h2>
+
+  <div class="stat-cards" id="d_stats">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- Ambulance info banner -->
+  <div class="cardx" id="d_amb_card" style="background:linear-gradient(135deg,var(--blue-dark),var(--blue));color:#fff;border:none">
+    <div id="d_amb" class="text-white">Loading ambulance info…</div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Current Assignment -->
+    <div class="col-lg-6">
+      <div class="cardx">
+        <div class="cardx-header">
+          <h6>📋 Current Assignment</h6>
+          <span id="d_assign_badge"></span>
+        </div>
+        <div id="d_cur">
+          <div class="text-muted text-center py-4">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="col-lg-6">
+      <div class="cardx">
+        <div class="cardx-header">
+          <h6>🗺️ Patient Location</h6>
+          <small class="text-muted" id="mapRefresh"></small>
+        </div>
+        <div id="dmap" class="gmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GPS sharing -->
+  <div class="cardx d-flex align-items-center gap-3 flex-wrap">
+    <button class="btn btn-primary btn-sm" id="gpsBtn" onclick="toggleGps()">
+      📡 Share My Location
+    </button>
+    <span id="gpsNote" class="small text-muted"></span>
+  </div>
+</div>
+
+<!-- ── My Assignments ─────────────────────────────── -->
+<div class="sec d-none" id="assignments">
+  <h2 class="page-title">📋 My Assignments</h2>
+  <div class="cardx">
+    <div class="table-responsive">
+      <table class="table">
+        <thead><tr>
+          <th>Incident Code</th><th>Emergency Type</th>
+          <th>Assigned</th><th>Completed</th><th>Status</th>
+        </tr></thead>
+        <tbody id="d_hist">
+          <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Update Status ──────────────────────────────── -->
+<div class="sec d-none" id="status">
+  <h2 class="page-title">🔄 Update Ambulance Status</h2>
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="cardx">
+        <h6>Select Current Status</h6>
+        <p class="small text-muted">You have been assigned to this emergency. Update status as you progress.</p>
+
+        {% for v, t, d in [
+          ('Assigned',            'Assigned',              'You have been assigned to this emergency.'),
+          ('En route',            'En Route',               'You are on the way to the location.'),
+          ('Arrived at scene',    'Arrived at Scene',       'You have reached the location.'),
+          ('Transporting patient','Transporting Patient',   'Patient is on board.'),
+          ('Completed',           'Completed',              'Emergency is complete.')
+        ] %}
+        <label class="opt">
+          <input type="radio" name="st" value="{{ v }}">
+          <span class="opt-label">
+            <b>{{ t }}</b><br>
+            <small class="text-muted">{{ d }}</small>
+          </span>
+        </label>
+        {% endfor %}
+
+        <div id="statusErr" class="alert alert-danger py-2 small mt-2 d-none"></div>
+        <button class="btn btn-primary w-100 py-2 mt-3" onclick="updStatus()">
+          Update Status
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="col-lg-6">
+      <div class="cardx">
+        <h6>Assignment Progress</h6>
+        <div id="d_steps" class="steps-bar mt-3">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Profile ─────────────────────────────────────── -->
+<div class="sec d-none" id="profile">
+  <h2 class="page-title">👤 My Profile</h2>
+  <div class="cardx" style="max-width:560px" id="prof">
+    <div class="text-center text-muted py-4">Loading profile…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/driver.js') }}"></script>
+{% endblock %}

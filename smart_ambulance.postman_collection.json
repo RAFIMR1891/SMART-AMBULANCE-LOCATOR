@@ -1,0 +1,483 @@
+{
+  "info": {
+    "name": "Smart Ambulance Locator",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Set collection variable base_url=http://localhost:5000. Login first: Postman stores the session cookie automatically (use one cookie jar per role; log in as driver/user via the same Login request with their credentials)."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login (admin/dispatcher)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"your-password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Register user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/auth/register",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Dashboard summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dashboard/summary",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "dashboard",
+            "summary"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Register ambulance",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ambulances",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "ambulances"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ambulance_code\": \"AMB104\",\n  \"registration_number\": \"KL-00-0004\",\n  \"latitude\": 10.01,\n  \"longitude\": 76.31,\n  \"capacity\": 2,\n  \"equipment\": \"ALS,Oxygen\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List ambulances",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ambulances",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "ambulances"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Update ambulance location",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ambulances/1/location",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "ambulances",
+            "1",
+            "location"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"latitude\": 10.02,\n  \"longitude\": 76.32\n}"
+        }
+      }
+    },
+    {
+      "name": "Create incident",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/incidents",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "incidents"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Warehouse fire\",\n  \"incident_type\": \"Fire accident\",\n  \"description\": \"10 injured\",\n  \"latitude\": 10.0159,\n  \"longitude\": 76.3419,\n  \"estimated_patient_count\": 10,\n  \"priority\": \"Critical\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Register patients",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/incidents/1/patients",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "incidents",
+            "1",
+            "patients"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"count\": 10,\n  \"triage_category\": null\n}"
+        }
+      }
+    },
+    {
+      "name": "Recommend ambulances",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/incidents/1/recommend-ambulances",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "incidents",
+            "1",
+            "recommend-ambulances"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"required_equipment\": [],\n  \"min_capacity\": 1\n}"
+        }
+      }
+    },
+    {
+      "name": "Confirm dispatch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/incidents/1/dispatch",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "incidents",
+            "1",
+            "dispatch"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ambulance_ids\": [\n    1,\n    2\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Cancel dispatch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/dispatches/1/cancel",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "dispatches",
+            "1",
+            "cancel"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Reassigning\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Update incident status (SQL/UI not yet exposed)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/incidents/1",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "incidents",
+            "1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Gemini incident summary",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/ai/incident-summary",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "ai",
+            "incident-summary"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incident_id\": 1\n}"
+        }
+      }
+    },
+    {
+      "name": "Driver: my assignments",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/driver/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "driver",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Driver: update status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/driver/status",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "driver",
+            "status"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"En route\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Driver: share location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/driver/location",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "driver",
+            "location"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"latitude\": 10.02,\n  \"longitude\": 76.33\n}"
+        }
+      }
+    },
+    {
+      "name": "User: create request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/user/requests",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "user",
+            "requests"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"incident_type\": \"Road accident\",\n  \"description\": \"Two injured\",\n  \"latitude\": 10.0,\n  \"longitude\": 76.3,\n  \"estimated_patient_count\": 2\n}"
+        }
+      }
+    },
+    {
+      "name": "User: my requests",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/user/requests",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "user",
+            "requests"
+          ]
+        }
+      }
+    }
+  ]
+}

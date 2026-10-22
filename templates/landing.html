@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Smart Ambulance Locator — Emergency Help Just a Click Away{% endblock %}
+{% block body %}
+<!-- Navigation -->
+<nav class="landing-nav">
+  <a class="brand" href="/">{% include "_logo.html" %}</a>
+  <div class="nav-links d-none d-md-flex">
+    <a href="/">Home</a>
+    <a href="#about">About</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <div class="nav-actions">
+    <a href="/login"  class="btn btn-outline-primary btn-sm px-4">Login</a>
+    <a href="/signup" class="btn btn-primary btn-sm px-4">Sign Up</a>
+  </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero" aria-label="Hero">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <!-- Image (left on desktop) -->
+      <div class="col-lg-6 order-lg-1">
+        <div class="hero-img-wrap">
+          <img src="{{ url_for('static', filename='ambulance_hero.png') }}"
+               alt="Emergency ambulance ready to respond"
+               class="hero-img" loading="eager">
+          <div class="hero-badge">
+            <span style="font-size:1.1rem">🚑</span> Available 24/7
+          </div>
+        </div>
+      </div>
+      <!-- Text (right on desktop) -->
+      <div class="col-lg-6 order-lg-2 hero-content">
+        <p class="text-primary fw-700 mb-1" style="font-size:.9rem;letter-spacing:.06em;text-transform:uppercase">Emergency Response System</p>
+        <h1>Emergency Help<br>Just a Click Away</h1>
+        <p class="hero-sub">Fast. Safe. Reliable.</p>
+        <p class="hero-tagline">Locate the nearest available ambulance in your area.<br>Real-time tracking. Instant dispatch.</p>
+        <div class="d-flex gap-3 flex-wrap">
+          <a href="/signup" class="btn btn-danger btn-lg px-5 py-3">
+            🚨 Request Ambulance
+          </a>
+          <a href="/login" class="btn btn-outline-primary btn-lg px-4 py-3">
+            Sign In
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Feature Cards -->
+<section id="about" class="features-section">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-accent mx-auto"></div>
+      <h2 class="fw-800" style="color:var(--blue-dark)">Why Choose Us?</h2>
+      <p class="text-muted">Everything you need in an emergency, right at your fingertips.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-6 col-lg-3">
+        <div class="feat-card">
+          <div class="feat-icon">📍</div>
+          <h5>Real-Time Tracking</h5>
+          <p>Track ambulance location on map. See live GPS updates as they move to you.</p>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="feat-card red">
+          <div class="feat-icon">🚑</div>
+          <h5>Nearby Ambulances</h5>
+          <p>Find the nearest available ambulance ranked by distance and ETA automatically.</p>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="feat-card orange">
+          <div class="feat-icon">⚡</div>
+          <h5>Quick Response</h5>
+          <p>Minimize emergency response time with traffic-aware ETA and smart dispatch.</p>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="feat-card green">
+          <div class="feat-icon">🛡️</div>
+          <h5>Safe &amp; Secure</h5>
+          <p>Your information is always safe. Role-based access keeps your data protected.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section style="background:var(--bg);padding:56px 0">
+  <div class="container">
+    <div class="text-center mb-5">
+      <div class="section-accent mx-auto"></div>
+      <h2 class="fw-800" style="color:var(--blue-dark)">How It Works</h2>
+    </div>
+    <div class="row g-4 justify-content-center">
+      {% for n, ico, t, d in [('1','📝','Register & Login','Create your patient account in seconds.'),('2','📍','Share Location','Allow GPS or type your coordinates.'),('3','🚑','Request Help','Submit your emergency request instantly.'),('4','✅','Track & Arrive','Track the ambulance in real time.')] %}
+      <div class="col-6 col-md-3 text-center">
+        <div style="width:60px;height:60px;border-radius:50%;background:var(--blue-dark);color:#fff;font-size:1.3rem;display:grid;place-items:center;margin:0 auto .75rem">{{ ico }}</div>
+        <div class="fw-700" style="color:var(--blue-dark)">Step {{ n }}: {{ t }}</div>
+        <small class="text-muted">{{ d }}</small>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- CTA Banner -->
+<section style="background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:64px 0;text-align:center">
+  <div class="container">
+    <h2 class="fw-800 text-white mb-2">Ready for an Emergency?</h2>
+    <p style="color:rgba(255,255,255,.8);margin-bottom:2rem">Sign up now and be prepared. Help is just one click away.</p>
+    <a href="/signup" class="btn btn-danger btn-lg px-5 py-3">Get Started Free</a>
+  </div>
+</section>
+
+<!-- Contact -->
+<section id="contact" style="background:#fff;padding:56px 0">
+  <div class="container">
+    <div class="text-center mb-4">
+      <div class="section-accent mx-auto"></div>
+      <h2 class="fw-800" style="color:var(--blue-dark)">Contact Us</h2>
+    </div>
+    <div class="row g-4 justify-content-center">
+      {% for ico, t, d in [('📞','Emergency Line','Call your local emergency number immediately for life-threatening situations.'),('📧','Support Email','support@smartambulancelocator.example'),('🏥','Headquarters','Emergency Services Division, Medical District')] %}
+      <div class="col-md-4 text-center">
+        <div style="font-size:2rem;margin-bottom:.5rem">{{ ico }}</div>
+        <div class="fw-700">{{ t }}</div>
+        <small class="text-muted">{{ d }}</small>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="text-center text-muted small mt-5">⚠️ In a life-threatening emergency, always call your local emergency number. This app supplements but does not replace emergency services.</p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="landing-footer">
+  <div class="container">
+    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+      <a class="brand" href="/" style="justify-content:center">{% include "_logo.html" %}</a>
+    </div>
+    <p class="mb-1">© 2024 Smart Ambulance Locator. All rights reserved.</p>
+    <small>Fast · Safe · Reliable · Available 24/7</small>
+  </div>
+</footer>
+{% endblock %}

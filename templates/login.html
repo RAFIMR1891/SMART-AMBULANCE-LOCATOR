@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Login — Smart Ambulance Locator{% endblock %}
+{% block body %}
+<div class="auth-bg">
+  <!-- Left panel (decorative, hidden on small screens) -->
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <div class="mb-4">🚑</div>
+      <h2>Welcome Back</h2>
+      <p>Sign in to access your Smart Ambulance Locator dashboard. Fast, safe, and reliable emergency response at your fingertips.</p>
+    </div>
+  </div>
+
+  <!-- Right panel (login form) -->
+  <div class="auth-right">
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="auth-logo">
+        {% include "_logo.html" %}
+      </div>
+      <h4>Login to Your Account</h4>
+
+      <!-- Role selector -->
+      <div class="mb-3">
+        <label class="form-label" for="role">Select Role</label>
+        <select id="role" class="form-select">
+          <option value="user">User (Patient)</option>
+          <option value="driver">Ambulance Driver</option>
+          <option value="admin">Admin / Dispatcher</option>
+        </select>
+      </div>
+
+      <!-- Email -->
+      <div class="mb-3">
+        <label class="form-label" for="email">Email</label>
+        <div class="input-with-icon">
+          <span class="icon">✉️</span>
+          <input id="email" type="email" class="form-control" placeholder="Enter your email" autocomplete="username">
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="mb-3">
+        <div class="d-flex justify-content-between">
+          <label class="form-label" for="pw">Password</label>
+          <a href="#" class="form-label text-primary text-decoration-none" style="font-size:.82rem" onclick="alert('Contact your administrator to reset your password.');return false">Forgot Password?</a>
+        </div>
+        <div class="input-group">
+          <span class="input-group-text">🔒</span>
+          <input id="pw" type="password" class="form-control" placeholder="Enter your password" autocomplete="current-password">
+          <button class="pw-toggle-btn btn btn-outline-secondary" type="button" id="pwToggle" title="Toggle password visibility">👁</button>
+        </div>
+      </div>
+
+      <!-- Remember me -->
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="rememberMe">
+        <label class="form-check-label" for="rememberMe" style="font-size:.875rem">Remember me</label>
+      </div>
+
+      <!-- Error message -->
+      <div id="loginErr" class="alert alert-danger py-2 small d-none" role="alert"></div>
+
+      <!-- Submit -->
+      <button class="btn btn-primary w-100 py-2 mb-3" id="go">Login</button>
+
+      <p class="text-center small mb-0" style="color:var(--text-muted)">
+        Don't have an account? <a href="/signup" class="text-primary fw-600">Sign Up</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const HOME = {admin:'/dashboard', dispatcher:'/dashboard', driver:'/driver', user:'/user'};
+
+pwToggle.addEventListener('click', () => {
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+  pwToggle.textContent = pw.type === 'password' ? '👁' : '🙈';
+});
+
+async function doLogin() {
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.add('d-none');
+  go.disabled = true; go.textContent = 'Signing in…';
+  const r = await api('/api/auth/login', 'POST', {
+    email: email.value.trim(),
+    password: pw.value,
+    role: role.value
+  });
+  go.disabled = false; go.textContent = 'Login';
+  if (r.success) {
+    location.href = HOME[r.data.role] || '/';
+  } else {
+    errEl.textContent = r.error || 'Login failed. Please try again.';
+    errEl.classList.remove('d-none');
+  }
+}
+
+go.addEventListener('click', doLogin);
+pw.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+email.addEventListener('keydown', e => { if (e.key === 'Enter') pw.focus(); });
+</script>
+{% endblock %}
